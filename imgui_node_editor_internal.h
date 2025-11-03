@@ -393,6 +393,8 @@ struct Node final: Object
     ImU32    m_BorderColor;
     float    m_BorderWidth;
     float    m_Rounding;
+    ImVec2   m_TargetSize{};
+    ImVec2   m_TargetBounds{};
 
     ImU32    m_GroupColor;
     ImU32    m_GroupBorderColor;
@@ -470,6 +472,11 @@ struct Link final: Object
         , m_Color(IM_COL32_WHITE)
         , m_Thickness(1.0f)
     {
+    }
+
+    virtual ~Link()
+    {
+
     }
 
     virtual ObjectId ID() override { return m_ID; }
@@ -568,6 +575,8 @@ struct Control
     Node*   DoubleClickedNode;
     Pin*    HotPin;
     Pin*    ActivePin;
+    Pin*    StartPin;
+    Pin*    EndPin;
     Pin*    ClickedPin;
     Pin*    DoubleClickedPin;
     Link*   HotLink;
@@ -596,6 +605,8 @@ struct Control
         , DoubleClickedNode(nullptr)
         , HotPin(nullptr)
         , ActivePin(nullptr)
+        , StartPin{}
+        , EndPin{}
         , ClickedPin(nullptr)
         , DoubleClickedPin(nullptr)
         , HotLink(nullptr)
@@ -1111,6 +1122,8 @@ struct CreateItemAction final : EditorAction
     Result RejectItem();
     Result AcceptItem();
 
+    void Add(Pin *startPin, Pin *endPin);
+
     Result QueryLink(PinId* startId, PinId* endId);
     Result QueryNode(PinId* pinId);
 
@@ -1122,6 +1135,8 @@ private:
     void DropPin(Pin* endPin);
     void DropNode();
     void DropNothing();
+
+    std::vector<std::pair<Pin *, Pin *>> m_CandidatePins;
 };
 
 struct DeleteItemsAction final: EditorAction
@@ -1288,6 +1303,12 @@ enum class SuspendFlags : uint8_t
 inline SuspendFlags operator |(SuspendFlags lhs, SuspendFlags rhs) { return static_cast<SuspendFlags>(static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs)); }
 inline SuspendFlags operator &(SuspendFlags lhs, SuspendFlags rhs) { return static_cast<SuspendFlags>(static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs)); }
 
+struct CandidatePin
+{
+    Pin *start;
+    Pin *end;
+    bool begined;
+};
 
 struct EditorContext
 {
@@ -1415,7 +1436,13 @@ struct EditorContext
 
         for (auto object : objects)
             if (object.m_Object->m_IsLive)
-                bounds.Add(object.m_Object->GetBounds());
+            {
+                auto pos = object.m_Object->GetBounds().Min;
+                if (pos.x > -10000000 && pos.x < 10000000)
+                {
+                    bounds.Add(object.m_Object->GetBounds());
+                }
+            }
 
         if (ImRect_IsEmpty(bounds))
             bounds = ImRect();
@@ -1524,6 +1551,7 @@ private:
     ShortcutAction      m_ShortcutAction;
     CreateItemAction    m_CreateItemAction;
     DeleteItemsAction   m_DeleteItemsAction;
+    std::vector<CandidatePin> m_CandidatePins;
 
     vector<AnimationController*> m_AnimationControllers;
     FlowAnimationController      m_FlowAnimationController;

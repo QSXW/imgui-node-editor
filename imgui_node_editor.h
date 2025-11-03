@@ -85,6 +85,8 @@ using ConfigLoadSettings     = size_t (*)(char* data, void* userPointer);
 using ConfigSaveNodeSettings = bool   (*)(NodeId nodeId, const char* data, size_t size, SaveReasonFlags reason, void* userPointer);
 using ConfigLoadNodeSettings = size_t (*)(NodeId nodeId, char* data, void* userPointer);
 
+// using ConfigSaveNode = bool (*)(NodeId nodeId, char *data, void *userPointer);
+
 using ConfigSession          = void   (*)(void* userPointer);
 
 struct Config
@@ -227,7 +229,7 @@ struct Style
     Style()
     {
         NodePadding              = ImVec4(8, 8, 8, 8);
-        NodeRounding             = 12.0f;
+        NodeRounding             = 5.0f;
         NodeBorderWidth          = 1.5f;
         HoveredNodeBorderWidth   = 3.5f;
         HoverNodeBorderOffset    = 0.0f;
