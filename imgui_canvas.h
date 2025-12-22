@@ -60,7 +60,7 @@ namespace ImGuiEx {
 struct CanvasView
 {
     ImVec2 Origin;
-    float  Scale  = 1.0f;
+    float  Scale    = 1.0f;
     float  InvScale = 1.0f;
 
     CanvasView() = default;

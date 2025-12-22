@@ -407,6 +407,8 @@ struct Node final: Object
     bool     m_RestoreState;
     bool     m_CenterOnScreen;
 
+    std::string userInfo;
+
     Node(EditorContext* editor, NodeId id)
         : Object(editor)
         , m_ID(id)
@@ -505,7 +507,7 @@ struct NodeSettings
     ImVec2 m_Size;
     ImVec2 m_GroupSize;
     bool   m_WasUsed;
-
+    std::string m_Custom;
     bool            m_Saved;
     bool            m_IsDirty;
     SaveReasonFlags m_DirtyReason;
@@ -546,7 +548,7 @@ struct Settings
         : m_IsDirty(false)
         , m_DirtyReason(SaveReasonFlags::None)
         , m_ViewScroll(0, 0)
-        , m_ViewZoom(1.0f)
+        , m_ViewZoom(0.75f)
         , m_VisibleRect()
     {
     }
@@ -1286,11 +1288,11 @@ struct Config: ax::NodeEditor::Config
     Config(const ax::NodeEditor::Config* config);
 
     std::string Load();
-    std::string LoadNode(NodeId nodeId);
+    std::string LoadNode(NodeId nodeId, NodeSettings &settings);
 
     void BeginSave();
     bool Save(const std::string& data, SaveReasonFlags flags);
-    bool SaveNode(NodeId nodeId, const std::string& data, SaveReasonFlags flags);
+    bool SaveNode(NodeId nodeId, const std::string& data, SaveReasonFlags flags, std::string &userInfo);
     void EndSave();
 };
 
@@ -1348,7 +1350,7 @@ struct EditorContext
     float GetNodeZPosition(NodeId nodeId);
 
     void MarkNodeToRestoreState(Node* node);
-    void UpdateNodeState(Node* node);
+    void UpdateNodeState(Node* node, bool restoreState = false);
 
     void RemoveSettings(Object* object);
 

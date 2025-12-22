@@ -18,7 +18,7 @@
 # include <imgui.h>
 # include <cstdint> // std::uintXX_t
 # include <utility> // std::move
-
+# include <string>
 
 //------------------------------------------------------------------------------
 # define IMGUI_NODE_EDITOR_VERSION      "0.9.4"
@@ -82,8 +82,8 @@ inline SaveReasonFlags operator &(SaveReasonFlags lhs, SaveReasonFlags rhs) { re
 using ConfigSaveSettings     = bool   (*)(const char* data, size_t size, SaveReasonFlags reason, void* userPointer);
 using ConfigLoadSettings     = size_t (*)(char* data, void* userPointer);
 
-using ConfigSaveNodeSettings = bool   (*)(NodeId nodeId, const char* data, size_t size, SaveReasonFlags reason, void* userPointer);
-using ConfigLoadNodeSettings = size_t (*)(NodeId nodeId, char* data, void* userPointer);
+using ConfigSaveNodeSettings = bool   (*)(NodeId nodeId, const char* data, size_t size, SaveReasonFlags reason, void* userPointer, std::string &custom);
+using ConfigLoadNodeSettings = size_t (*)(NodeId nodeId, char* data, void* userPointer, const std::string &custom);
 
 // using ConfigSaveNode = bool (*)(NodeId nodeId, char *data, void *userPointer);
 
@@ -230,14 +230,14 @@ struct Style
     {
         NodePadding              = ImVec4(8, 8, 8, 8);
         NodeRounding             = 5.0f;
-        NodeBorderWidth          = 1.5f;
-        HoveredNodeBorderWidth   = 3.5f;
+        NodeBorderWidth          = 1.2f;
+        HoveredNodeBorderWidth   = 1.2f;
         HoverNodeBorderOffset    = 0.0f;
-        SelectedNodeBorderWidth  = 3.5f;
+        SelectedNodeBorderWidth  = 1.2f;
         SelectedNodeBorderOffset = 0.0f;
         PinRounding              = 4.0f;
         PinBorderWidth           = 0.0f;
-        LinkStrength             = 100.0f;
+        LinkStrength             = 0.0f;
         SourceDirection          = ImVec2(1.0f, 0.0f);
         TargetDirection          = ImVec2(-1.0f, 0.0f);
         ScrollDuration           = 0.35f;
@@ -433,11 +433,7 @@ IMGUI_NODE_EDITOR_API ImVec2 CanvasToScreen(const ImVec2& pos);
 IMGUI_NODE_EDITOR_API int GetNodeCount();                                // Returns number of submitted nodes since Begin() call
 IMGUI_NODE_EDITOR_API int GetOrderedNodeIds(NodeId* nodes, int size);    // Fills an array with node id's in order they're drawn; up to 'size` elements are set. Returns actual size of filled id's.
 
-
-
-
-
-
+IMGUI_NODE_EDITOR_API void MakeDirty(NodeId id, SaveReasonFlags reason);
 
 //------------------------------------------------------------------------------
 namespace Details {

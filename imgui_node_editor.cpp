@@ -676,6 +676,14 @@ void ed::Node::Draw(ImDrawList* drawList, DrawFlags flags)
         auto &io = ImGui::GetIO();
         auto size = m_Bounds.GetSize();
         m_Bounds.Min = ImLerp(m_Bounds.Min, m_TargetBounds, io.DeltaTime * 30.0f);
+        if (std::abs(m_Bounds.Min.x - m_TargetBounds.x) < 1e-6)
+        {
+            m_Bounds.Min.x = m_TargetBounds.x;
+        }
+        if (std::abs(m_Bounds.Min.y - m_TargetBounds.y) < 1e-6)
+        {
+            m_Bounds.Min.y = m_TargetBounds.y;
+        }
         m_Bounds.Max = m_Bounds.Min + m_TargetSize;
     }
     if (flags == Detail::Object::None)
@@ -752,9 +760,7 @@ void ed::Node::DrawBorder(ImDrawList* drawList, ImU32 color, float thickness, fl
     if (thickness > 0.0f)
     {
         const ImVec2 extraOffset = ImVec2(offset, offset);
-
-        drawList->AddRect(m_Bounds.Min - extraOffset, m_Bounds.Max + extraOffset,
-            color, ImMax(0.0f, m_Rounding + offset), c_AllRoundCornersFlags, thickness);
+        drawList->AddRectFilled(m_Bounds.Min - extraOffset, m_Bounds.Max + extraOffset, IM_COL32_BLACK_TRANS, ImMax(0.0f, m_Rounding + offset), c_AllRoundCornersFlags, thickness, color, color);
     }
 }
 
@@ -1820,9 +1826,9 @@ void ed::EditorContext::MarkNodeToRestoreState(Node* node)
     node->m_RestoreState = true;
 }
 
-void ed::EditorContext::UpdateNodeState(Node* node)
+void ed::EditorContext::UpdateNodeState(Node* node, bool restoreState)
 {
-    bool tryLoadState = node->m_RestoreState;
+    bool tryLoadState = node->m_RestoreState || restoreState;
 
     node->m_RestoreState = false;
 
@@ -1843,7 +1849,7 @@ void ed::EditorContext::UpdateNodeState(Node* node)
     if (tryLoadState)
     {
         NodeSettings newSettings = *settings;
-        if (NodeSettings::Parse(m_Config.LoadNode(node->m_ID), newSettings))
+        if (NodeSettings::Parse(m_Config.LoadNode(node->m_ID, newSettings), newSettings))
             *settings = newSettings;
     }
 
@@ -2265,7 +2271,7 @@ ed::Link* ed::EditorContext::GetLink(LinkId id)
 
 void ed::EditorContext::LoadSettings()
 {
-    ed::Settings::Parse(m_Config.Load(), m_Settings);
+    bool parsed = ed::Settings::Parse(m_Config.Load(), m_Settings);
 
     if (ImRect_IsEmpty(m_Settings.m_VisibleRect))
     {
@@ -2275,6 +2281,19 @@ void ed::EditorContext::LoadSettings()
     else
     {
         m_NavigateAction.NavigateTo(m_Settings.m_VisibleRect, NavigateAction::ZoomMode::Exact, 0.0f);
+    }
+
+    if (parsed)
+    {
+        for (auto &node : m_Settings.m_Nodes)
+        {
+            auto n = FindNode(node.m_ID);
+            if (!n)
+            {
+                n = CreateNode(node.m_ID);
+            }
+            UpdateNodeState(n, true);
+        }
     }
 }
 
@@ -2292,7 +2311,7 @@ void ed::EditorContext::SaveSettings()
 
         if (!node->m_RestoreState && settings->m_IsDirty && m_Config.SaveNodeSettings)
         {
-            if (m_Config.SaveNode(node->m_ID, settings->Serialize().dump(), settings->m_DirtyReason))
+            if (m_Config.SaveNode(node->m_ID, settings->Serialize().dump(), settings->m_DirtyReason, settings->m_Custom))
                 settings->ClearDirty();
         }
     }
@@ -2796,6 +2815,8 @@ ed::json::value ed::NodeSettings::Serialize()
         result["group_size"]["y"] = m_GroupSize.y;
     }
 
+    result["custom"] = m_Custom;
+
     return result;
 }
 
@@ -2837,6 +2858,11 @@ bool ed::NodeSettings::Parse(const json::value& data, NodeSettings& result)
 
     if (data.contains("group_size") && !tryParseVector(data["group_size"], result.m_GroupSize))
         return false;
+
+    if (data.contains("custom"))
+    {
+        result.m_Custom = data["custom"].get<std::string>();
+    }
 
     return true;
 }
@@ -5939,7 +5965,7 @@ std::string ed::Config::Load()
         if (size > 0)
         {
             data.resize(size);
-            LoadSettings(const_cast<char*>(data.data()), UserPointer);
+            data.resize(LoadSettings(const_cast<char *>(data.data()), UserPointer));
         }
     }
     else if (SettingsFile)
@@ -5959,17 +5985,18 @@ std::string ed::Config::Load()
     return data;
 }
 
-std::string ed::Config::LoadNode(NodeId nodeId)
+std::string ed::Config::LoadNode(NodeId nodeId, NodeSettings &settings)
 {
     std::string data;
 
     if (LoadNodeSettings)
     {
-        const auto size = LoadNodeSettings(nodeId, nullptr, UserPointer);
+        const auto size = LoadNodeSettings(nodeId, nullptr, UserPointer, settings.m_Custom);
+        settings.m_Custom.clear();
         if (size > 0)
         {
             data.resize(size);
-            LoadNodeSettings(nodeId, const_cast<char*>(data.data()), UserPointer);
+            LoadNodeSettings(nodeId, const_cast<char*>(data.data()), UserPointer, settings.m_Custom);
         }
     }
 
@@ -6000,10 +6027,10 @@ bool ed::Config::Save(const std::string& data, SaveReasonFlags flags)
     return false;
 }
 
-bool ed::Config::SaveNode(NodeId nodeId, const std::string& data, SaveReasonFlags flags)
+bool ed::Config::SaveNode(NodeId nodeId, const std::string& data, SaveReasonFlags flags, std::string &userInfo)
 {
     if (SaveNodeSettings)
-        return SaveNodeSettings(nodeId, data.c_str(), data.size(), flags, UserPointer);
+        return SaveNodeSettings(nodeId, data.c_str(), data.size(), flags, UserPointer, userInfo);
 
     return false;
 }
